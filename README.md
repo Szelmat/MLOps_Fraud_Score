@@ -1,4 +1,4 @@
-# mlops_fraud_score
+# MLOps Fraud Score
 
 An MLOps project for scoring card transactions for fraud. It covers data versioning with DVC, experiment tracking with MLflow, and a Python environment managed with [uv](https://docs.astral.sh/uv/).
 
