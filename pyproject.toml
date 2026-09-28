@@ -1,0 +1,26 @@
+[project]
+name = "mlops-fraud-score"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi[standard]>=0.141.1",
+    "httpx2>=2.13.1",
+    "pytest>=9.1.1",
+]
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+
+[dependency-groups]
+dev = [
+    "dvc>=3.67.1",
+    "pre-commit>=4.6.2",
+    "pytest-cov>=7.1.0",
+]
+
+
+[tool.coverage.run]
+source = ["."]
+omit = ["tests/*", ".venv/*"]
