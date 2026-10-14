@@ -85,6 +85,17 @@ Configure the API with these environment variables:
 |----------|---------|---------|
 | `FRAUD_THRESHOLD` | `0.5` | Probability at or above which `is_fraud` is `true` |
 | `CORS_ORIGINS` | `http://localhost:3000,http://localhost:5173` | Comma-separated frontend origins allowed to call the API |
+| `LOG_LEVEL` | `INFO` | Minimum level of the log lines the API writes |
+
+### Logging
+
+The API writes structured logs with [structlog](https://www.structlog.org/) to stdout, one JSON object per line:
+
+```json
+{"status_code": 200, "duration_ms": 1.4, "event": "request_completed", "request_id": "demo-1", "method": "GET", "path": "/health", "level": "info", "timestamp": "2026-10-14T19:13:24.568194Z"}
+```
+
+Every request gets a request ID, which appears in all the log lines from that request and in the response's `X-Request-ID` header. If the client sends an `X-Request-ID` header, the API uses that ID instead, so a frontend can match its own logs to the API's. Predictions log the probability and the decision, not the transaction data.
 
 ## Testing
 
@@ -161,11 +172,13 @@ uv run dvc push
 │   └── raw/                  # DVC-tracked raw datasets
 ├── api/
 │   ├── config.py             # Settings from environment variables
+│   ├── logs.py               # Structured (JSON) logging setup
 │   ├── model.py              # FraudModel interface the API calls
 │   └── schemas.py            # Request and response schemas
 ├── src/                      # Source code (empty for now)
 ├── tests/
-│   └── test_api.py           # API tests
+│   ├── test_api.py           # API tests
+│   └── test_logging.py       # Logging tests
 ├── main.py                   # FastAPI app and routes
 ├── .dvc/                     # DVC configuration and remote
 ├── .pre-commit-config.yaml   # Pre-commit hook: pytest with coverage

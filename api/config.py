@@ -15,6 +15,7 @@ class Settings:
     fraud_threshold: float = field(
         default_factory=lambda: float(os.getenv("FRAUD_THRESHOLD", "0.5"))
     )
+    log_level: str = field(default_factory=lambda: os.getenv("LOG_LEVEL", "INFO"))
     cors_origins: list[str] = field(
         default_factory=lambda: _split(os.getenv("CORS_ORIGINS", DEFAULT_CORS_ORIGINS))
     )
