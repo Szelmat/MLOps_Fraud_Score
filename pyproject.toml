@@ -8,6 +8,7 @@ dependencies = [
     "fastapi[standard]>=0.141.1",
     "httpx2>=2.13.1",
     "pytest>=9.1.1",
+    "structlog>=26.1.0",
 ]
 
 [tool.pytest.ini_options]

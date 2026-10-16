@@ -51,9 +51,51 @@ uv run fastapi dev main.py
 
 The server listens on http://127.0.0.1:8000, and the interactive docs are at http://127.0.0.1:8000/docs.
 
-| Method | Path | Response |
-|--------|------|----------|
-| `GET` | `/` | `{"project": "MLOps Fraud Score"}` |
+| Method | Path | Body | Response |
+|--------|------|------|----------|
+| `GET` | `/` | | `{"project": "MLOps Fraud Score"}` |
+| `GET` | `/health` | | `{"status": "ok", "model_loaded": true}` |
+| `POST` | `/predict` | One transaction | `{"fraud_probability": 0.9, "is_fraud": true, "threshold": 0.5}` |
+| `POST` | `/predict/batch` | `{"transactions": [...]}`, 1 to 1,000 items | `{"predictions": [...]}`, in request order |
+
+A transaction uses the dataset's features in snake_case, without the IDs and the label. The `/docs` page has a ready-to-send example. Categorical fields accept only the values seen in the training data, and the API rejects invalid or unknown fields with `422`.
+
+```bash
+curl -X POST http://127.0.0.1:8000/predict \
+  -H 'Content-Type: application/json' \
+  -d '{"transaction_amount": 39.85, "transaction_type": "POS", "timestamp": "2023-01-22T23:47:00",
+       "account_balance": 33069.86, "device_type": "Tablet", "location": "Mumbai",
+       "merchant_category": "Travel", "ip_address_flag": true, "previous_fraudulent_activity": false,
+       "daily_transaction_count": 2, "avg_transaction_amount_7d": 81.6, "failed_transaction_count_7d": 2,
+       "card_type": "Amex", "card_age": 223, "transaction_distance": 617.12,
+       "authentication_method": "PIN", "risk_score": 0.6742, "is_weekend": true}'
+```
+
+### Model serving
+
+Training happens outside the API, and the trained model comes from MLflow. The API only serves predictions. Its routes call the `FraudModel` interface in `api/model.py`, which `app.state.model` holds. They don't depend on how the model is stored.
+
+`Transaction.to_feature_row()` converts a request into the raw dataset's column names and formats, so the model receives the same kind of input it was trained on.
+
+When no model is loaded, `/health` reports `"model_loaded": false` and the prediction endpoints return `503`.
+
+Configure the API with these environment variables:
+
+| Variable | Default | Purpose |
+|----------|---------|---------|
+| `FRAUD_THRESHOLD` | `0.5` | Probability at or above which `is_fraud` is `true` |
+| `CORS_ORIGINS` | `http://localhost:3000,http://localhost:5173` | Comma-separated frontend origins allowed to call the API |
+| `LOG_LEVEL` | `INFO` | Minimum level of the log lines the API writes |
+
+### Logging
+
+The API writes structured logs with [structlog](https://www.structlog.org/) to stdout, one JSON object per line:
+
+```json
+{"status_code": 200, "duration_ms": 1.4, "event": "request_completed", "request_id": "demo-1", "method": "GET", "path": "/health", "level": "info", "timestamp": "2026-10-14T19:13:24.568194Z"}
+```
+
+Every request gets a request ID, which appears in all the log lines from that request and in the response's `X-Request-ID` header. If the client sends an `X-Request-ID` header, the API uses that ID instead, so a frontend can match its own logs to the API's. Predictions log the probability and the decision, not the transaction data.
 
 ## Testing
 
@@ -128,10 +170,16 @@ uv run dvc push
 .
 ├── data/
 │   └── raw/                  # DVC-tracked raw datasets
+├── api/
+│   ├── config.py             # Settings from environment variables
+│   ├── logs.py               # Structured (JSON) logging setup
+│   ├── model.py              # FraudModel interface the API calls
+│   └── schemas.py            # Request and response schemas
 ├── src/                      # Source code (empty for now)
 ├── tests/
-│   └── test_api.py           # API tests
-├── main.py                   # FastAPI app
+│   ├── test_api.py           # API tests
+│   └── test_logging.py       # Logging tests
+├── main.py                   # FastAPI app and routes
 ├── .dvc/                     # DVC configuration and remote
 ├── .pre-commit-config.yaml   # Pre-commit hook: pytest with coverage
 ├── pyproject.toml            # Project metadata, dependencies, pytest and coverage config
