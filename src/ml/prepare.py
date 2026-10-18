@@ -46,3 +46,7 @@ def main() -> None:
     train_df.to_csv(config.TRAIN_CSV, index=False)
     valid_df.to_csv(config.VALID_CSV, index=False)
     log.info("train=%d valid=%d", len(train_df), len(valid_df))
+
+
+if __name__ == "__main__":  # pragma: no cover - script entry point; main() is tested directly
+    main()
