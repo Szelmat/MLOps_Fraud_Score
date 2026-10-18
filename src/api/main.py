@@ -11,7 +11,9 @@ from fastapi.middleware.cors import CORSMiddleware
 from src.api.config import Settings
 from src.api.logs import configure_logging
 from src.api.model import FraudModel, load_champion_model
-from src.api.schemas import BatchPrediction, BatchRequest, Health, Prediction, Transaction
+from src.api.schemas import BatchPrediction, BatchRequest, Health, Prediction, Transaction, TrainResult
+from src.ml import evaluate, prepare
+from src.ml import train as train_stage
 
 settings = Settings()
 configure_logging(settings.log_level)
@@ -130,3 +132,16 @@ def predict_batch(
         threshold=threshold,
     )
     return BatchPrediction(predictions=predictions)
+
+
+@app.post("/train")
+def train(request: Request) -> TrainResult:
+    """Runs prepare -> train -> evaluate, like `dvc repro`, and serves the new model if it was promoted."""
+    prepare.main()
+    train_stage.main()
+    result = evaluate.main()
+    if result["promoted"]:
+        # Keep serving the old model if the new one can't be loaded.
+        request.app.state.model = load_champion_model() or request.app.state.model
+    logger.info("training_finished", run_id=result["run_id"], promoted=result["promoted"])
+    return TrainResult(**result)
