@@ -41,6 +41,9 @@ MLFLOW_REGISTERED_MODEL: str = os.getenv("MLFLOW_REGISTERED_MODEL", "fraud-score
 CHAMPION_ALIAS: str = "champion"
 # train writes the run_id here; evaluate reads it to resume the same run
 MLFLOW_RUN_ID_PATH: Path = MODELS_DIR / "mlflow_run_id"
+# The server hands out presigned MinIO links (http://minio:9000/...) for downloads, which only
+# resolve inside docker compose; download through the MLflow server instead.
+os.environ.setdefault("MLFLOW_ENABLE_PROXY_MULTIPART_DOWNLOAD", "false")
 
 
 # --- Params ----------------------------------------------------------------

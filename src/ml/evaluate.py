@@ -48,14 +48,14 @@ def main() -> dict[str, Any]:
 
     valid_df = pd.read_csv(config.VALID_CSV)
     X, y = valid_df.drop(columns=[target]), valid_df[target]
-    pipe = mlflow_sklearn.load_model(f"runs:/{run_id}/model")
+    [model_version] = client.search_model_versions(f"run_id='{run_id}'")
+    version = str(model_version.version)
+    pipe = mlflow_sklearn.load_model(f"models:/{config.MLFLOW_REGISTERED_MODEL}/{version}")
     metrics = scoring.compute_metrics(pipe, X, y, evaluate_params["threshold"])
     config.write_json(config.METRICS_PATH, metrics)
 
     best = champion_f1(client, X, y, evaluate_params["threshold"])
     promoted = should_promote(metrics["f1"], best, evaluate_params["min_f1"])
-    [model_version] = client.search_model_versions(f"run_id='{run_id}'")
-    version = str(model_version.version)
     if promoted:
         client.set_registered_model_alias(config.MLFLOW_REGISTERED_MODEL, config.CHAMPION_ALIAS, version)
 
