@@ -7,10 +7,10 @@ import structlog
 from fastapi import Depends, FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 
-from api.config import Settings
-from api.logs import configure_logging
-from api.model import FraudModel
-from api.schemas import BatchPrediction, BatchRequest, Health, Prediction, Transaction
+from src.api.config import Settings
+from src.api.logs import configure_logging
+from src.api.model import FraudModel
+from src.api.schemas import BatchPrediction, BatchRequest, Health, Prediction, Transaction
 
 settings = Settings()
 configure_logging(settings.log_level)

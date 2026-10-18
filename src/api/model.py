@@ -1,6 +1,6 @@
 from typing import Protocol
 
-from api.schemas import Transaction
+from src.api.schemas import Transaction
 
 
 class FraudModel(Protocol):

@@ -28,3 +28,6 @@ omit = ["tests/*", ".venv/*"]
 
 [tool.coverage.report]
 fail_under = 100
+
+[tool.fastapi]
+entrypoint = "src.api.main:app"
