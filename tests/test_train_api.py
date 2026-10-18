@@ -4,7 +4,7 @@ import yaml
 from fastapi.testclient import TestClient
 from mlflow import MlflowClient
 
-from src.api.main import app
+from src.api.main import app, training_lock
 from src.api.schemas import EXAMPLE_TRANSACTION
 from src.ml import config
 from tests.conftest import PARAMS
@@ -33,3 +33,8 @@ def test_rejected_model_keeps_the_served_champion(project: Path):
         response = client.post("/train")
     assert response.json()["promoted"] is False
     assert app.state.model is served
+
+
+def test_only_one_training_at_a_time(project: Path):
+    with TestClient(app) as client, training_lock:
+        assert client.post("/train").status_code == 409

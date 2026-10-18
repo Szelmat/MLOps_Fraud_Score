@@ -1,3 +1,4 @@
+import threading
 import time
 import uuid
 from collections.abc import AsyncGenerator, Awaitable, Callable
@@ -134,12 +135,21 @@ def predict_batch(
     return BatchPrediction(predictions=predictions)
 
 
+# Two trainings at once would overwrite each other's files and race for the champion alias.
+training_lock = threading.Lock()
+
+
 @app.post("/train")
 def train(request: Request) -> TrainResult:
     """Runs prepare -> train -> evaluate, like `dvc repro`, and serves the new model if it was promoted."""
-    prepare.main()
-    train_stage.main()
-    result = evaluate.main()
+    if not training_lock.acquire(blocking=False):
+        raise HTTPException(status_code=409, detail="Training is already running")
+    try:
+        prepare.main()
+        train_stage.main()
+        result = evaluate.main()
+    finally:
+        training_lock.release()
     if result["promoted"]:
         # Keep serving the old model if the new one can't be loaded.
         request.app.state.model = load_champion_model() or request.app.state.model
