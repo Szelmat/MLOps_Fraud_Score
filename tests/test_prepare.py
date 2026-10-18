@@ -1,7 +1,10 @@
+from pathlib import Path
+
 import pandas as pd
 import pytest
 
-from src.ml.prepare import clean
+from src.ml import config
+from src.ml.prepare import clean, main
 from tests.conftest import make_transactions
 
 DROP = ["Transaction_ID", "User_ID", "Timestamp"]
@@ -24,3 +27,10 @@ def test_clean_rejects_non_binary_target():
     raw.loc[0, "Fraud_Label"] = 2
     with pytest.raises(ValueError, match="only 0 and 1"):
         clean(raw, "Fraud_Label", DROP)
+
+
+def test_main_writes_stratified_splits(project: Path):
+    main()
+    train, valid = pd.read_csv(config.TRAIN_CSV), pd.read_csv(config.VALID_CSV)
+    assert (len(train), len(valid)) == (300, 100)
+    assert abs(train["Fraud_Label"].mean() - valid["Fraud_Label"].mean()) < 0.02

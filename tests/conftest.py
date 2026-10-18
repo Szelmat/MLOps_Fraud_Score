@@ -1,9 +1,31 @@
+from pathlib import Path
 from typing import Any, get_args
 
 import numpy as np
 import pandas as pd
+import pytest
+import yaml
 
 from src.api import schemas
+from src.ml import config
+
+PARAMS: dict[str, Any] = {
+    "seed": 42,
+    "prepare": {
+        "test_size": 0.25,
+        "target": "Fraud_Label",
+        "drop_columns": ["Transaction_ID", "User_ID", "Timestamp"],
+        "stratify": True,
+    },
+    "train": {
+        "model": "random_forest",
+        "n_estimators": 20,
+        "max_depth": 4,
+        "min_samples_leaf": 2,
+        "class_weight": "balanced",
+    },
+    "evaluate": {"threshold": 0.5, "min_f1": 0.3},
+}
 
 
 def make_transactions(n: int, seed: int = 0) -> pd.DataFrame:
@@ -45,3 +67,27 @@ def make_transactions(n: int, seed: int = 0) -> pd.DataFrame:
             "Fraud_Label": fraud,
         }
     )
+
+
+@pytest.fixture
+def project(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
+    """Points every path in `config` at a temporary project with synthetic raw data and params.yaml,
+    so nothing touches the repository.
+    """
+    paths = {
+        "RAW_CSV": "data/raw/fraud_5000.csv",
+        "PROCESSED_DIR": "data/processed",
+        "TRAIN_CSV": "data/processed/train.csv",
+        "VALID_CSV": "data/processed/valid.csv",
+        "METRICS_PATH": "metrics/metrics.json",
+        "PARAMS_PATH": "params.yaml",
+        "DVC_LOCK_PATH": "dvc.lock",
+        "MLFLOW_RUN_ID_PATH": "models/mlflow_run_id",
+        "PREDICTION_LOG_PATH": "logs/predictions.jsonl",
+    }
+    for name, relative in paths.items():
+        monkeypatch.setattr(config, name, tmp_path / relative)
+    config.RAW_CSV.parent.mkdir(parents=True)
+    make_transactions(400).to_csv(config.RAW_CSV, index=False)
+    config.PARAMS_PATH.write_text(yaml.safe_dump(PARAMS), encoding="utf-8")
+    return tmp_path
