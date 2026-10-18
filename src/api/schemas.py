@@ -2,6 +2,7 @@ from datetime import datetime
 from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
+from pydantic.config import JsonDict
 
 TransactionType = Literal["ATM Withdrawal", "Bank Transfer", "Online", "POS"]
 DeviceType = Literal["Laptop", "Mobile", "Tablet"]
@@ -32,7 +33,7 @@ FEATURE_COLUMNS = {
     "is_weekend": "Is_Weekend",
 }
 
-EXAMPLE_TRANSACTION = {
+EXAMPLE_TRANSACTION: JsonDict = {
     "transaction_amount": 39.85,
     "transaction_type": "POS",
     "timestamp": "2023-01-22T23:47:00",

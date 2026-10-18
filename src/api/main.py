@@ -1,10 +1,11 @@
 import time
 import uuid
+from collections.abc import Awaitable, Callable
 from contextlib import asynccontextmanager
 from typing import Annotated
 
 import structlog
-from fastapi import Depends, FastAPI, HTTPException, Request
+from fastapi import Depends, FastAPI, HTTPException, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 
 from src.api.config import Settings
@@ -38,7 +39,9 @@ app.add_middleware(
 
 
 @app.middleware("http")
-async def log_requests(request: Request, call_next):
+async def log_requests(
+    request: Request, call_next: Callable[[Request], Awaitable[Response]]
+) -> Response:
     """Logs every request and tags all logs it produces with a request ID.
 
     The ID comes from the client's `X-Request-ID` header if present, and is
