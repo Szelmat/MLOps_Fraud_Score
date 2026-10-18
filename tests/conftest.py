@@ -1,3 +1,5 @@
+import os
+import uuid
 from pathlib import Path
 from typing import Any, get_args
 
@@ -8,6 +10,9 @@ import yaml
 
 from src.api import schemas
 from src.ml import config
+
+# Tests must not send usage telemetry to MLflow's servers.
+os.environ["MLFLOW_DISABLE_TELEMETRY"] = "true"
 
 PARAMS: dict[str, Any] = {
     "seed": 42,
@@ -69,10 +74,17 @@ def make_transactions(n: int, seed: int = 0) -> pd.DataFrame:
     )
 
 
+@pytest.fixture(scope="session")
+def mlflow_dir(tmp_path_factory: pytest.TempPathFactory) -> Path:
+    return tmp_path_factory.mktemp("mlflow")
+
+
 @pytest.fixture
-def project(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
-    """Points every path in `config` at a temporary project with synthetic raw data and params.yaml,
-    so nothing touches the repository.
+def project(tmp_path: Path, mlflow_dir: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
+    """Points every path in `config` at a temporary project with synthetic raw data and params.yaml.
+
+    MLflow uses a real SQLite store shared by the test session, with fresh experiment and
+    model names per test, so nothing is mocked and nothing touches the repository.
     """
     paths = {
         "RAW_CSV": "data/raw/fraud_5000.csv",
@@ -90,4 +102,11 @@ def project(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     config.RAW_CSV.parent.mkdir(parents=True)
     make_transactions(400).to_csv(config.RAW_CSV, index=False)
     config.PARAMS_PATH.write_text(yaml.safe_dump(PARAMS), encoding="utf-8")
+
+    test_id = uuid.uuid4().hex[:8]
+    monkeypatch.setattr(config, "MLFLOW_TRACKING_URI", f"sqlite:///{(mlflow_dir / 'mlflow.db').as_posix()}")
+    monkeypatch.setattr(config, "MLFLOW_EXPERIMENT_NAME", f"experiment-{test_id}")
+    monkeypatch.setattr(config, "MLFLOW_REGISTERED_MODEL", f"model-{test_id}")
+    # With a SQLite store MLflow writes artifacts to ./mlruns, so keep them out of the repo.
+    monkeypatch.chdir(mlflow_dir)
     return tmp_path
