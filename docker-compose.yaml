@@ -79,7 +79,6 @@ services:
     build:
       context: .
       dockerfile: docker/dvc_dockerfile
-      network: host
     secrets:
       - minio_root_password
     image: mlops:local
@@ -129,7 +128,6 @@ services:
 
   mlflow:
     build:
-      network: host
       dockerfile: docker/mlflow_dockerfile
     secrets:
       - postgres_admin_password
