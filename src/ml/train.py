@@ -112,6 +112,7 @@ def main() -> None:
         mlflow_sklearn.log_model(
             pipeline,
             name="model",
+            registered_model_name=config.MLFLOW_REGISTERED_MODEL,
             input_example=X_train.head(5),
             skops_trusted_types=SKOPS_TRUSTED_TYPES,
             pip_requirements=MODEL_REQUIREMENTS,
