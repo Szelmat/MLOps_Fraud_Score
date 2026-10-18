@@ -7,6 +7,7 @@ No magic constants scattered across the stage modules.
 import json
 import logging
 import os
+import subprocess
 from collections.abc import Mapping
 from pathlib import Path
 from typing import Any
@@ -85,3 +86,36 @@ def write_json(path: Path, payload: Mapping[str, Any]) -> None:
     with path.open("w", encoding="utf-8") as file_handler:
         json.dump(payload, file_handler, indent=2, sort_keys=True)
         file_handler.write("\n")
+
+
+# --- Lineage tags -----------------------------------------------------------
+def git_sha() -> str:
+    """Current commit, with a '-dirty' suffix if the tree has uncommitted changes.
+    A '-dirty' run is NOT reproducible.
+    """
+    try:
+        sha = subprocess.run(
+            ["git", "rev-parse", "HEAD"], capture_output=True, text=True, cwd=PROJECT_ROOT, check=True
+        ).stdout.strip()
+        dirty = subprocess.run(
+            ["git", "status", "--porcelain"], capture_output=True, text=True, cwd=PROJECT_ROOT, check=True
+        ).stdout.strip()
+    except (OSError, subprocess.CalledProcessError):  # metadata must never break training
+        return "unknown"
+    return f"{sha}-dirty" if dirty else sha
+
+
+def dvc_data_hash(dep_suffix: str = "fraud_5000.csv") -> str:
+    """Content hash of the raw dataset, taken from dvc.lock."""
+    if not DVC_LOCK_PATH.exists():
+        return "unknown"
+    lock = yaml.safe_load(DVC_LOCK_PATH.read_text(encoding="utf-8")) or {}
+    for dep in lock.get("stages", {}).get("prepare", {}).get("deps", []):
+        if dep["path"].endswith(dep_suffix):
+            return str(dep.get("md5", "unknown"))
+    return "unknown"
+
+
+def lineage_tags() -> dict[str, str]:
+    """The tags that connect a run to the code (Git) and the data (DVC)."""
+    return {"git_sha": git_sha(), "dvc_data_hash": dvc_data_hash()}
