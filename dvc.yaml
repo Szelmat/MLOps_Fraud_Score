@@ -1,3 +1,12 @@
+# Three steps DAG:  prepare -> train -> evaluate
+#
+#   uv run dvc dag                 # graph
+#   uv run dvc repro               # just the invalidated steps are running
+#   uv run dvc metrics diff HEAD~1
+#
+# IMPORTANT: in every steps need to add the OWN source as well
+# If them are missing, DVC always says that evething up-to-date
+
 stages:
   prepare:
     cmd: python -m src.ml.prepare
@@ -34,3 +43,19 @@ stages:
     outs:
       - models/mlflow_run_id:
           cache: false      # plain text run ID -> goes to GIT
+
+  evaluate:
+    cmd: python -m src.ml.evaluate
+    deps:
+      - src/ml/evaluate.py
+      - src/ml/scoring.py
+      - src/ml/config.py
+      - models/mlflow_run_id
+      - data/processed/valid.csv
+    params:
+      - prepare.target
+      - evaluate.threshold
+      - evaluate.min_f1
+    metrics:
+      - metrics/metrics.json:
+          cache: false      # small JSON -> goes to GIT
