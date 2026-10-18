@@ -1,6 +1,8 @@
 import numpy as np
 import pandas as pd
 import pytest
+from sklearn.dummy import DummyClassifier
+from sklearn.pipeline import Pipeline
 
 from src.ml.scoring import compute_metrics
 
@@ -25,3 +27,10 @@ def test_compute_metrics_at_threshold():
     assert metrics["recall"] == 1.0
     assert metrics["accuracy"] == 0.8
     assert metrics["roc_auc"] == 1.0
+
+
+def test_compute_metrics_without_positive_predictions():
+    pipe = Pipeline([("model", DummyClassifier(strategy="most_frequent"))]).fit(X, Y)
+    metrics = compute_metrics(pipe, X, Y)
+    assert metrics["precision"] == 0.0
+    assert metrics["f1"] == 0.0
