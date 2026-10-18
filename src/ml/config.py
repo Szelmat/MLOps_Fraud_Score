@@ -4,7 +4,10 @@ Single source of truth for paths and for reading ``params.yaml``.
 No magic constants scattered across the stage modules.
 """
 
+import json
+import logging
 import os
+from collections.abc import Mapping
 from pathlib import Path
 from typing import Any
 
@@ -46,3 +49,39 @@ def load_params(path: Path | None = None) -> dict[str, Any]:
     with path.open("r", encoding="utf-8") as fh:
         params: dict[str, Any] = yaml.safe_load(fh)
     return params
+
+
+# --- Logging ---------------------------------------------------------------
+def get_logger(name: str) -> logging.Logger:
+    """Structured-ish stdlib logging; never ``print()`` in pipeline code."""
+    logging.basicConfig(
+        level=os.getenv("LOG_LEVEL", "INFO").upper(),
+        format="%(asctime)s %(levelname)-7s %(name)s | %(message)s",
+        datefmt="%H:%M:%S",
+    )
+    return logging.getLogger(name)
+
+
+def flatten(params: Mapping[str, Any], prefix: str = "") -> dict[str, Any]:
+    """`{"train": {"seed": 1}}` -> `{"train.seed": 1}` -- the shape MLflow wants."""
+    flat: dict[str, Any] = {}
+    for key, value in params.items():
+        name = f"{prefix}{key}"
+        if isinstance(value, Mapping):
+            flat.update(flatten(value, f"{name}."))
+        else:
+            flat[name] = value
+    return flat
+
+
+# --- Small IO helpers ------------------------------------------------------
+def ensure_dirs(*dirs: Path) -> None:
+    for directory in dirs:
+        directory.mkdir(parents=True, exist_ok=True)
+
+
+def write_json(path: Path, payload: Mapping[str, Any]) -> None:
+    ensure_dirs(path.parent)
+    with path.open("w", encoding="utf-8") as file_handler:
+        json.dump(payload, file_handler, indent=2, sort_keys=True)
+        file_handler.write("\n")
