@@ -1,6 +1,6 @@
 import time
 import uuid
-from collections.abc import Awaitable, Callable
+from collections.abc import AsyncGenerator, Awaitable, Callable
 from contextlib import asynccontextmanager
 from typing import Annotated
 
@@ -10,7 +10,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from src.api.config import Settings
 from src.api.logs import configure_logging
-from src.api.model import FraudModel
+from src.api.model import FraudModel, load_champion_model
 from src.api.schemas import BatchPrediction, BatchRequest, Health, Prediction, Transaction
 
 settings = Settings()
@@ -19,10 +19,9 @@ logger = structlog.get_logger()
 
 
 @asynccontextmanager
-async def lifespan(app: FastAPI):
+async def lifespan(app: FastAPI) -> AsyncGenerator[None]:
     app.state.settings = Settings()
-    # Set to an MLflow-backed FraudModel once the model is registered there.
-    app.state.model = None
+    app.state.model = load_champion_model()
     logger.info("startup", model_loaded=app.state.model is not None)
     yield
 
@@ -96,7 +95,7 @@ def to_prediction(probability: float, threshold: float) -> Prediction:
 
 
 @app.get("/")
-def read_root():
+def read_root() -> dict[str, str]:
     return {"project": "MLOps Fraud Score"}
 
 
