@@ -1,0 +1,16 @@
+stages:
+  prepare:
+    cmd: python -m src.ml.prepare
+    deps:
+      - src/ml/prepare.py
+      - src/ml/config.py
+      - data/raw/fraud_5000.csv
+    params:
+      - seed
+      - prepare.test_size
+      - prepare.target
+      - prepare.drop_columns
+      - prepare.stratify
+    outs:
+      - data/processed/train.csv
+      - data/processed/valid.csv
