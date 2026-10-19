@@ -10,3 +10,6 @@ mlartifacts/
 .env
 logs/
 .claude/
+
+# secrets
+secrets/

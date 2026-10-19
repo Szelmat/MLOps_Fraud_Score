@@ -106,6 +106,13 @@ class BatchPrediction(BaseModel):
     )
 
 
+class TrainResult(BaseModel):
+    run_id: str
+    model_version: str
+    metrics: dict[str, float]
+    promoted: bool = Field(description="True if the new model passed the gate and is now served")
+
+
 class Health(BaseModel):
     status: Literal["ok"]
     model_loaded: bool

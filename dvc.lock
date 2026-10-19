@@ -1,0 +1,107 @@
+schema: '2.0'
+stages:
+  prepare:
+    cmd: python -m src.ml.prepare
+    deps:
+    - path: data/raw/fraud_5000.csv
+      hash: md5
+      md5: 1b9e37ea40c360b026d66298959a36ae
+      size: 702606
+    - path: src/ml/config.py
+      hash: md5
+      md5: 25e97d18debc27a93c5bddb73a64faa8
+      size: 5161
+    - path: src/ml/prepare.py
+      hash: md5
+      md5: 1b55f70bb49adf013f7cc7880c476a73
+      size: 1944
+    params:
+      params.yaml:
+        prepare.drop_columns:
+        - Transaction_ID
+        - User_ID
+        - Timestamp
+        - Risk_Score
+        prepare.stratify: true
+        prepare.target: Fraud_Label
+        prepare.test_size: 0.2
+        seed: 42
+    outs:
+    - path: data/processed/train.csv
+      hash: md5
+      md5: 1db471ae1d84474fe02530a921866230
+      size: 379768
+    - path: data/processed/valid.csv
+      hash: md5
+      md5: 6e4505565a8ae74a34a83bbef4bc677b
+      size: 94755
+  train:
+    cmd: python -m src.ml.train
+    deps:
+    - path: data/processed/train.csv
+      hash: md5
+      md5: 1db471ae1d84474fe02530a921866230
+      size: 379768
+    - path: data/processed/valid.csv
+      hash: md5
+      md5: 6e4505565a8ae74a34a83bbef4bc677b
+      size: 94755
+    - path: src/ml/config.py
+      hash: md5
+      md5: 25e97d18debc27a93c5bddb73a64faa8
+      size: 5161
+    - path: src/ml/scoring.py
+      hash: md5
+      md5: ad66e0a53eb5300ca6d00c16f910c7f8
+      size: 1361
+    - path: src/ml/train.py
+      hash: md5
+      md5: 73e1d2a9b94fe55cf03af5334411348d
+      size: 5342
+    params:
+      params.yaml:
+        prepare.target: Fraud_Label
+        seed: 42
+        train.class_weight: balanced
+        train.max_depth: 8
+        train.min_samples_leaf: 2
+        train.model: random_forest
+        train.n_estimators: 200
+    outs:
+    - path: models/mlflow_run_id
+      hash: md5
+      md5: 1729caad6c884fa9a1703c5fd7318476
+      size: 32
+  evaluate:
+    cmd: python -m src.ml.evaluate
+    deps:
+    - path: data/processed/valid.csv
+      hash: md5
+      md5: 6e4505565a8ae74a34a83bbef4bc677b
+      size: 94755
+    - path: models/mlflow_run_id
+      hash: md5
+      md5: 1729caad6c884fa9a1703c5fd7318476
+      size: 32
+    - path: src/ml/config.py
+      hash: md5
+      md5: 25e97d18debc27a93c5bddb73a64faa8
+      size: 5161
+    - path: src/ml/evaluate.py
+      hash: md5
+      md5: eae241d9a5684fc2cc100c797a3734a6
+      size: 3358
+    - path: src/ml/scoring.py
+      hash: md5
+      md5: ad66e0a53eb5300ca6d00c16f910c7f8
+      size: 1361
+    params:
+      params.yaml:
+        evaluate.min_f1: 0.6
+        evaluate.threshold: 0.5
+        prepare.target: Fraud_Label
+    outs:
+    - path: metrics/metrics.json
+      hash: md5
+      md5: 39d562c0059dd72ea5972f5bfb542f38
+      size: 108

@@ -1,0 +1,25 @@
+# Every hyperparameter of the pipeline. DVC re-runs a stage when a value it uses changes.
+seed: 42
+
+prepare:
+  test_size: 0.2
+  target: Fraud_Label
+  # IDs carry no signal; Timestamp is unique per row (Is_Weekend keeps the day-type signal).
+  # Risk_Score leaks the label: Fraud_Label = Risk_Score > 0.85 OR Failed_Transaction_Count_7d >= 4.
+  drop_columns:
+    - Transaction_ID
+    - User_ID
+    - Timestamp
+    - Risk_Score
+  stratify: true
+
+train:
+  model: random_forest   # random_forest | logistic_regression
+  n_estimators: 200
+  max_depth: 8
+  min_samples_leaf: 2
+  class_weight: balanced
+
+evaluate:
+  threshold: 0.5
+  min_f1: 0.60           # a model below this never becomes champion
