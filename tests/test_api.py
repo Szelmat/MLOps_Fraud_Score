@@ -5,6 +5,9 @@ from src.api.config import Settings
 from src.api.schemas import EXAMPLE_TRANSACTION, Transaction
 from src.api.main import app
 
+# The app loads its model from MLflow at startup: use the temporary test store.
+pytestmark = pytest.mark.usefixtures("project")
+
 
 class FakeModel:
     """Returns a fixed probability per transaction, keyed by amount."""
