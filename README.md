@@ -283,3 +283,9 @@ Git ignores the following local outputs: `.venv/`, `mlruns/`, `mlartifacts/`, `*
 | `LOG_LEVEL` | `INFO` | Log level of the pipeline and the API |
 
 The API's own settings (`FRAUD_THRESHOLD`, `CORS_ORIGINS`) are listed under "Model serving".
+
+## Screenshots
+
+![Test results](docs/screenshots/tests.png)
+![MLflow model registry](docs/screenshots/mlflow_registry.png)
+![POST /train](docs/screenshots/train_endpoint.png)
