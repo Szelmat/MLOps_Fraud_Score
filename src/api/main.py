@@ -12,7 +12,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from src.api.config import Settings
 from src.api.logs import configure_logging
 from src.api.model import FraudModel, load_champion_model
-from src.api.prediction_log import log_predictions
+from src.api.prediction_log import log_predictions, upload_prediction_log
 from src.api.schemas import BatchPrediction, BatchRequest, Health, Prediction, Transaction, TrainResult
 from src.ml import config, evaluate, prepare
 from src.ml import train as train_stage
@@ -28,6 +28,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None]:
     app.state.model = load_champion_model()
     logger.info("startup", model_loaded=app.state.model is not None)
     yield
+    upload_prediction_log(config.PREDICTION_LOG_PATH)
 
 
 app = FastAPI(title="MLOps Fraud Score", lifespan=lifespan)
