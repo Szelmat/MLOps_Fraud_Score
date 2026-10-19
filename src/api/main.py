@@ -12,8 +12,9 @@ from fastapi.middleware.cors import CORSMiddleware
 from src.api.config import Settings
 from src.api.logs import configure_logging
 from src.api.model import FraudModel, load_champion_model
+from src.api.prediction_log import log_predictions
 from src.api.schemas import BatchPrediction, BatchRequest, Health, Prediction, Transaction, TrainResult
-from src.ml import evaluate, prepare
+from src.ml import config, evaluate, prepare
 from src.ml import train as train_stage
 
 settings = Settings()
@@ -111,6 +112,7 @@ def health(request: Request) -> Health:
 def predict(transaction: Transaction, model: Model, threshold: Threshold) -> Prediction:
     [probability] = model.predict_proba([transaction])
     prediction = to_prediction(probability, threshold)
+    log_predictions(config.PREDICTION_LOG_PATH, [transaction], [prediction])
     logger.info(
         "prediction",
         fraud_probability=prediction.fraud_probability,
@@ -126,6 +128,7 @@ def predict_batch(
 ) -> BatchPrediction:
     probabilities = model.predict_proba(batch.transactions)
     predictions = [to_prediction(p, threshold) for p in probabilities]
+    log_predictions(config.PREDICTION_LOG_PATH, batch.transactions, predictions)
     logger.info(
         "batch_prediction",
         count=len(predictions),
