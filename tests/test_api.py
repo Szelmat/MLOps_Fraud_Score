@@ -1,9 +1,12 @@
 import pytest
 from fastapi.testclient import TestClient
 
-from api.config import Settings
-from api.schemas import EXAMPLE_TRANSACTION, Transaction
-from main import app
+from src.api.config import Settings
+from src.api.schemas import EXAMPLE_TRANSACTION, Transaction
+from src.api.main import app
+
+# The app loads its model from MLflow at startup: use the temporary test store.
+pytestmark = pytest.mark.usefixtures("project")
 
 
 class FakeModel:

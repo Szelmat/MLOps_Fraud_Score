@@ -1,6 +1,30 @@
+# Runs on every `git commit` after `uv run pre-commit install`.
 repos:
   - repo: local
     hooks:
+      - id: requirements
+        name: export requirements.txt from uv.lock
+        entry: uv export -q --format requirements-txt --no-hashes --no-dev --no-emit-project -o requirements.txt
+        language: system
+        files: ^(pyproject\.toml|uv\.lock)$
+        pass_filenames: false
+      - id: requirements-dev
+        name: export requirements_dev.txt from uv.lock
+        entry: uv export -q --format requirements-txt --no-hashes --no-emit-project -o requirements_dev.txt
+        language: system
+        files: ^(pyproject\.toml|uv\.lock)$
+        pass_filenames: false
+      - id: flake8
+        name: flake8
+        entry: uv run flake8
+        language: system
+        types: [python]
+      - id: pyright
+        name: pyright (strict)
+        entry: uv run pyright
+        language: system
+        types: [python]
+        pass_filenames: false
       - id: pytest
         name: pytest with coverage
         entry: uv run pytest --cov --cov-report=term-missing
