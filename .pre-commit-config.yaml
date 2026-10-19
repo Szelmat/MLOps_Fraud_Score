@@ -4,7 +4,7 @@ repos:
     hooks:
       - id: requirements
         name: export requirements.txt from uv.lock
-        entry: uv export -q --format requirements-txt --no-hashes --no-dev --no-emit-project -o requirements.txt
+        entry: uv export -q --format requirements-txt --no-hashes --no-default-groups --no-emit-project -o requirements.txt
         language: system
         files: ^(pyproject\.toml|uv\.lock)$
         pass_filenames: false

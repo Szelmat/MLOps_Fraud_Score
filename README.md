@@ -45,6 +45,7 @@ To add a dependency:
 ```bash
 uv add <package>          # runtime dependency
 uv add --dev <package>    # development-only dependency (tests, linters, ...)
+uv add --group ui <package>   # Streamlit UI dependency
 ```
 
 Commit both `pyproject.toml` and `uv.lock` after any change to the dependencies.
@@ -55,6 +56,7 @@ Commit both `pyproject.toml` and `uv.lock` after any change to the dependencies.
 
 | Service | Address | Purpose |
 |---------|---------|---------|
+| `ui` | http://localhost:8501 | Streamlit UI (see "UI") |
 | `api` | http://localhost:8000/docs | The scoring API (see "Running the API") |
 | `mlflow` | http://localhost:5500 | MLflow tracking server and model registry |
 | `minio` | http://localhost:9001 (console), http://localhost:9000 (S3 API) | DVC remote (`dvc` bucket) and MLflow artifacts (`mlflow` bucket) |
@@ -65,7 +67,7 @@ Two one-off containers run at startup: `create-buckets` creates the two buckets,
 Settings come from `.env` (copy `.env.example`) and passwords from `secrets/` (copy `secrets_example/`). Git ignores both. Log in to the MinIO console with `MINIO_ROOT_USER` and `secrets/minio_root_password.txt`.
 
 ```bash
-docker compose ps       # postgres, minio, mlflow and api: healthy
+docker compose ps       # postgres, minio, mlflow, api and ui: healthy
 docker compose stop     # stop the services, keep the data
 docker compose start    # start them again
 docker compose down -v  # remove the containers and all their data
@@ -169,6 +171,22 @@ Every request gets a request ID, which appears in all the log lines from that re
 
 Every transaction the API scores is appended to `logs/predictions.jsonl`, one JSON object per line: the features in the raw dataset's column names, the prediction and the time (`logged_at`). It also holds `Timestamp` and `Risk_Score`, which `data/processed/train.csv` drops, so leave them out when comparing the two. It is the input of Evidently drift reports. Requests that fail validation are not logged. When the API shuts down, it stores the file in MLflow as an artifact of a run in the `fraud-score-serving` experiment. Git ignores `logs/`.
 
+## UI
+
+A [Streamlit](https://streamlit.io/) app in `src/ui/`. The header shows the API's health, and a button runs `POST /train` and shows the new model's metrics and whether it was promoted.
+
+The UI talks to the API only over HTTP, through `src/ui/api_client.py`, so its predictions and trainings go through the same validation and logs as any other client. It never loads the model itself. Streamlit reruns the whole script on every click, so the health is kept in the session: it is requested once when the page loads and again after a training.
+
+**In Docker.** `docker compose up -d` starts it as the `ui` service (`docker/ui_dockerfile`) at http://localhost:8501, calling the API at `http://api:8000`. The image installs only the `ui` dependency group, not MLflow or scikit-learn.
+
+**On the host**, against the API on port 8000:
+
+```bash
+uv run python -m streamlit run src/ui/app.py
+```
+
+`python -m` puts the project root on the import path, so `src.ui` resolves. Set `API_URL` to point the UI at another API.
+
 ## Testing
 
 Tests live in `tests/` and use pytest with FastAPI's `TestClient`.
@@ -178,7 +196,7 @@ uv run pytest                                      # run the tests
 uv run pytest --cov --cov-report=term-missing      # with a coverage report
 ```
 
-Tests import the code as `src.api` and `src.ml`. They need neither Docker nor the DVC data: `tests/conftest.py` generates synthetic transactions in the dataset's format and points every path and the MLflow tracking URI at a temporary folder with a SQLite store. Coverage measures `src/` and `tests/` and must be 100%.
+Tests import the code as `src.api`, `src.ml` and `src.ui`. The UI tests run the Streamlit script headless with `streamlit.testing.v1.AppTest` and a fake API client, and test the client against `httpx.MockTransport`. Tests need neither Docker nor the DVC data: `tests/conftest.py` generates synthetic transactions in the dataset's format and points every path and the MLflow tracking URI at a temporary folder with a SQLite store. Coverage measures `src/` and `tests/` and must be 100%.
 
 ### Code quality
 
@@ -257,21 +275,24 @@ uv run dvc push
 │   │   ├── schemas.py            # Request and response schemas
 │   │   ├── config.py             # API settings from environment variables
 │   │   └── logs.py               # Structured (JSON) logging setup
-│   └── ml/
-│       ├── config.py             # Paths, MLflow settings, params.yaml loading, lineage tags
-│       ├── prepare.py            # DVC stage 1: clean and split
-│       ├── train.py              # DVC stage 2: train, track and register
-│       ├── evaluate.py           # DVC stage 3: score and promote to champion
-│       └── scoring.py            # Metrics shared by train and evaluate
+│   ├── ml/
+│   │   ├── config.py             # Paths, MLflow settings, params.yaml loading, lineage tags
+│   │   ├── prepare.py            # DVC stage 1: clean and split
+│   │   ├── train.py              # DVC stage 2: train, track and register
+│   │   ├── evaluate.py           # DVC stage 3: score and promote to champion
+│   │   └── scoring.py            # Metrics shared by train and evaluate
+│   └── ui/
+│       ├── app.py                # Streamlit page: health header, training button
+│       └── api_client.py         # HTTP client for the API, the UI's only way to reach it
 ├── tests/                        # pytest; conftest.py holds the synthetic data and the temporary project
 ├── data/
 │   ├── raw/                      # DVC-tracked raw dataset
 │   └── processed/                # Train/valid split, a DVC stage output
-├── docker/                       # API and MLflow images, MinIO bucket script and its image
+├── docker/                       # API, UI and MLflow images, MinIO bucket script and its image
 ├── secrets_example/              # Example passwords; copy to secrets/
 ├── metrics/metrics.json          # Latest evaluation metrics (in Git)
 ├── models/mlflow_run_id          # MLflow run of the latest training (in Git)
-├── docker-compose.yaml           # Postgres, MinIO, MLflow, API
+├── docker-compose.yaml           # Postgres, MinIO, MLflow, API, UI
 ├── .dockerignore                 # Keeps .venv, data and secrets out of the API image
 ├── dvc.yaml, dvc.lock            # Pipeline definition and its locked state
 ├── params.yaml                   # Every pipeline parameter
@@ -280,7 +301,7 @@ uv run dvc push
 ├── .pre-commit-config.yaml       # Requirements export, flake8, pyright, pytest
 ├── .github/workflows/tests.yml   # flake8, pyright and pytest in GitHub Actions
 ├── pyproject.toml, uv.lock       # Dependencies and tool configuration
-└── requirements.txt, requirements_dev.txt   # Pinned versions, generated from uv.lock
+└── requirements.txt, requirements_dev.txt   # Pinned versions from uv.lock: the API's, and everything
 ```
 
 Git ignores the following local outputs: `.venv/`, `mlruns/`, `mlartifacts/`, `*.db`, `logs/`, `.env`, `secrets/`, and coverage or pytest caches.

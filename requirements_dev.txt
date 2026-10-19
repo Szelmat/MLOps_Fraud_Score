@@ -25,6 +25,8 @@ aiosignal==1.4.0
     # via aiohttp
 alembic==1.20.0
     # via mlflow
+altair==6.3.0
+    # via streamlit
 amqp==5.4.0
     # via kombu
 annotated-doc==0.0.5
@@ -43,6 +45,7 @@ anyio==4.15.1
     #   httpx2
     #   mlflow-skinny
     #   starlette
+    #   streamlit
     #   watchfiles
 appdirs==1.4.4
     # via iterative-telemetry
@@ -55,6 +58,8 @@ attrs==26.1.0
     #   aiohttp
     #   dvc
     #   dvc-data
+    #   jsonschema
+    #   referencing
     #   sqltrie
 billiard==4.3.0
     # via celery
@@ -96,6 +101,7 @@ click==8.5.0
     #   gto
     #   mlflow-skinny
     #   rich-toolkit
+    #   streamlit
     #   uvicorn
 click-didyoumean==0.3.1
     # via celery
@@ -288,17 +294,25 @@ iniconfig==2.3.0
 iterative-telemetry==0.0.10
     # via dvc
 itsdangerous==2.2.0
-    # via flask
+    # via
+    #   flask
+    #   streamlit
 jinja2==3.1.6
     # via
+    #   altair
     #   fastapi
     #   flask
+    #   pydeck
 jmespath==1.1.0
     # via
     #   aiobotocore
     #   botocore
 joblib==1.6.0
     # via scikit-learn
+jsonschema==4.26.0
+    # via altair
+jsonschema-specifications==2025.9.1
+    # via jsonschema
 kiwisolver==1.5.1
     # via matplotlib
 kombu==5.6.2
@@ -334,7 +348,9 @@ multidict==6.9.1
     #   aiohttp
     #   yarl
 narwhals==2.27.1
-    # via scikit-learn
+    # via
+    #   altair
+    #   scikit-learn
 networkx==3.7
     # via dvc
 nodeenv==1.10.0
@@ -347,9 +363,11 @@ numpy==2.5.4
     #   matplotlib
     #   mlflow
     #   pandas
+    #   pydeck
     #   scikit-learn
     #   scipy
     #   skops
+    #   streamlit
 omegaconf==2.3.1
     # via
     #   dvc
@@ -376,6 +394,7 @@ orjson==3.12.0 ; implementation_name == 'cpython'
     #   sqltrie
 packaging==26.3
     # via
+    #   altair
     #   dvc
     #   hydra-core
     #   kombu
@@ -384,16 +403,20 @@ packaging==26.3
     #   mlflow-tracing
     #   pytest
     #   skops
+    #   streamlit
 pandas==3.0.6
     # via
     #   mlflow
     #   mlops-fraud-score
+    #   streamlit
 pathspec==1.1.1
     # via
     #   dvc
     #   scmrepo
-pillow==13.0.0
-    # via matplotlib
+pillow==12.3.0
+    # via
+    #   matplotlib
+    #   streamlit
 platformdirs==4.11.15
     # via
     #   dvc
@@ -417,12 +440,15 @@ protobuf==7.36.2
     #   mlflow-skinny
     #   mlflow-tracing
     #   opentelemetry-proto
+    #   streamlit
 psutil==7.2.2
     # via
     #   dvc
     #   flufl-lock
 pyarrow==25.0.1
-    # via mlflow
+    # via
+    #   mlflow
+    #   streamlit
 pyasn1==0.6.4
     # via pyasn1-modules
 pyasn1-modules==0.4.2
@@ -448,6 +474,8 @@ pydantic-settings==2.15.0
     # via
     #   fastapi
     #   gto
+pydeck==0.9.3
+    # via streamlit
 pydot==4.0.1
     # via dvc
 pyflakes==4.0.3
@@ -490,7 +518,9 @@ python-dotenv==1.2.3
     #   pydantic-settings
     #   uvicorn
 python-multipart==0.0.32
-    # via fastapi
+    # via
+    #   fastapi
+    #   streamlit
 pywin32==312 ; sys_platform == 'win32'
     # via
     #   docker
@@ -502,6 +532,10 @@ pyyaml==6.0.3
     #   omegaconf
     #   pre-commit
     #   uvicorn
+referencing==0.37.0
+    # via
+    #   jsonschema
+    #   jsonschema-specifications
 requests==2.34.2
     # via
     #   databricks-sdk
@@ -510,6 +544,7 @@ requests==2.34.2
     #   dvc-studio-client
     #   iterative-telemetry
     #   mlflow-skinny
+    #   streamlit
 rich==15.0.0
     # via
     #   dvc
@@ -522,6 +557,10 @@ rich-toolkit==0.20.5
     #   fastapi-cloud-cli
 rignore==0.8.1
     # via fastapi-cloud-cli
+rpds-py==2026.9.1
+    # via
+    #   jsonschema
+    #   referencing
 ruamel-yaml==0.19.1
     # via
     #   dvc
@@ -574,6 +613,8 @@ starlette==1.7.0
     # via
     #   fastapi
     #   mlflow-skinny
+    #   streamlit
+streamlit==1.66.0
 structlog==26.1.0
     # via mlops-fraud-score
 tabulate==0.10.0
@@ -603,6 +644,7 @@ typing-extensions==4.16.0
     #   aiohttp
     #   aiosignal
     #   alembic
+    #   altair
     #   anyio
     #   asyncssh
     #   click-repl
@@ -617,9 +659,11 @@ typing-extensions==4.16.0
     #   pydantic-core
     #   pydantic-extra-types
     #   pyright
+    #   referencing
     #   rich-toolkit
     #   sqlalchemy
     #   starlette
+    #   streamlit
     #   typing-inspection
 typing-inspection==0.4.4
     # via
@@ -647,6 +691,7 @@ uvicorn==0.54.0
     #   fastapi-cli
     #   fastapi-cloud-cli
     #   mlflow-skinny
+    #   streamlit
 uvloop==0.22.1 ; platform_python_implementation != 'PyPy' and sys_platform != 'cygwin' and sys_platform != 'win32'
     # via uvicorn
 vine==5.1.0
@@ -662,6 +707,8 @@ voluptuous==0.16.0
     #   dvc-studio-client
 waitress==3.0.2 ; sys_platform == 'win32'
     # via mlflow
+watchdog==6.0.0 ; sys_platform != 'darwin'
+    # via streamlit
 watchfiles==1.3.0
     # via uvicorn
 wcwidth==0.9.1
@@ -669,7 +716,9 @@ wcwidth==0.9.1
     #   prettytable
     #   prompt-toolkit
 websockets==17.1
-    # via uvicorn
+    # via
+    #   streamlit
+    #   uvicorn
 werkzeug==3.1.9
     # via
     #   flask

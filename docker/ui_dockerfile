@@ -1,0 +1,22 @@
+# Streamlit UI on port 8501. It only talks to the API over HTTP, so it installs only the `ui` group.
+FROM python:3.12-slim
+
+COPY --from=ghcr.io/astral-sh/uv:0.10.6 /uv /usr/local/bin/uv
+
+WORKDIR /app
+
+ENV UV_COMPILE_BYTECODE=1 UV_LINK_MODE=copy
+COPY pyproject.toml uv.lock .python-version ./
+RUN uv sync --locked --only-group ui --no-install-project
+
+COPY src/ui/ src/ui/
+
+ENV PATH="/app/.venv/bin:$PATH" \
+    PYTHONUNBUFFERED=1 \
+    STREAMLIT_SERVER_HEADLESS=true \
+    STREAMLIT_BROWSER_GATHER_USAGE_STATS=false
+
+EXPOSE 8501
+
+# `python -m` puts /app on the import path, so `src.ui` resolves.
+CMD ["python", "-m", "streamlit", "run", "src/ui/app.py", "--server.address=0.0.0.0", "--server.port=8501"]
