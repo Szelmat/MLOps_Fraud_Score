@@ -21,7 +21,8 @@ uv sync
 # Install the git pre-commit hook (once per clone)
 uv run pre-commit install
 
-# Start Postgres, MinIO and MLflow (see "Infrastructure")
+# Start Postgres, MinIO, MLflow and the API (see "Infrastructure").
+# docker compose fails without .env and secrets/, so copy the examples first.
 cp .env.example .env
 cp -r secrets_example secrets
 docker compose up -d --build
@@ -50,10 +51,11 @@ Commit both `pyproject.toml` and `uv.lock` after any change to the dependencies.
 
 ## Infrastructure
 
-`docker-compose.yaml`, taken from the course template, starts the services the pipeline and the API use:
+`docker-compose.yaml`, based on the course template, starts the scoring API and the services the pipeline and the API use:
 
 | Service | Address | Purpose |
 |---------|---------|---------|
+| `api` | http://localhost:8000/docs | The scoring API (see "Running the API") |
 | `mlflow` | http://localhost:5500 | MLflow tracking server and model registry |
 | `minio` | http://localhost:9001 (console), http://localhost:9000 (S3 API) | DVC remote (`dvc` bucket) and MLflow artifacts (`mlflow` bucket) |
 | `postgres` | inside the compose network | MLflow backend store |
@@ -63,7 +65,7 @@ Two one-off containers run at startup: `create-buckets` creates the two buckets,
 Settings come from `.env` (copy `.env.example`) and passwords from `secrets/` (copy `secrets_example/`). Git ignores both. Log in to the MinIO console with `MINIO_ROOT_USER` and `secrets/minio_root_password.txt`.
 
 ```bash
-docker compose ps       # postgres, minio and mlflow: healthy
+docker compose ps       # postgres, minio, mlflow and api: healthy
 docker compose stop     # stop the services, keep the data
 docker compose start    # start them again
 docker compose down -v  # remove the containers and all their data
@@ -71,12 +73,15 @@ docker compose down -v  # remove the containers and all their data
 
 The pipeline and the API download MLflow artifacts through the tracking server (`MLFLOW_ENABLE_PROXY_MULTIPART_DOWNLOAD=false` in `src/ml/config.py`). The presigned MinIO links the server hands out (`http://minio:9000/...`) only resolve inside the compose network.
 
+MLflow accepts requests only for the `Host` names listed in `--allowed-hosts` in `docker-compose.yaml`: `mlflow` for the API container, and `localhost` and `127.0.0.1` from the host. Any other name gets `403 Invalid Host header`. To reach MLflow by another name, add it to that list.
+
 ## Training pipeline
 
 ```bash
 uv run dvc repro           # runs only the stages whose inputs changed
 uv run dvc metrics show    # metrics/metrics.json
 uv run dvc dag             # prepare -> train -> evaluate
+uv run dvc metrics diff HEAD~1   # compare the metrics with the previous commit
 ```
 
 | Stage | Code | Output |
@@ -89,19 +94,27 @@ Every parameter lives in `params.yaml`. `Risk_Score` is dropped because it leaks
 
 `evaluate` is the quality gate. A new version becomes `champion` only if its F1 on the validation split is at least `evaluate.min_f1` and not below the current champion's F1 on the same split. A worse model is registered but never served.
 
-The model is a scikit-learn Pipeline (one-hot encoding, scaling and a random forest), so the API sends raw columns and the Pipeline does the preprocessing. MLflow saves it with skops instead of pickle and loads only the types listed in `SKOPS_TRUSTED_TYPES`, so a tampered model file cannot run code.
+The model is a scikit-learn Pipeline (median imputation, one-hot encoding, scaling and a random forest, or a logistic regression with `train.model: logistic_regression`), so the API sends raw columns and the Pipeline does the preprocessing. MLflow saves it with skops instead of pickle and loads only the types listed in `SKOPS_TRUSTED_TYPES`, so a tampered model file cannot run code.
 
-Results on the real data (`metrics/metrics.json`): F1 0.7865, ROC-AUC 0.8436, precision 1.0, recall 0.6481.
+Results on the real data (`metrics/metrics.json`): F1 0.7865, ROC-AUC 0.8436, accuracy 0.886, precision 1.0, recall 0.6481.
 
 ## Running the API
 
-The scoring service is a [FastAPI](https://fastapi.tiangolo.com/) app defined in `src/api/main.py`. `pyproject.toml` names it as the entrypoint, so no path is needed:
+The scoring service is a [FastAPI](https://fastapi.tiangolo.com/) app defined in `src/api/main.py`. Either way below, it listens on http://127.0.0.1:8000, and the interactive docs are at http://127.0.0.1:8000/docs.
+
+**In Docker.** `docker compose up -d` starts the API as the `api` service (`docker/api_dockerfile`) once MLflow is healthy. It reaches MLflow at `http://mlflow:5000`. Because `POST /train` reads the data and `params.yaml` and writes the pipeline outputs, compose mounts `data/`, `models/`, `metrics/`, `logs/`, `params.yaml` and `dvc.lock` from the project folder, and the results land in your working tree. The image has no git, so runs that `/train` starts get the tag `git_sha=unknown`. After changing the code, rebuild the image:
 
 ```bash
-uv run fastapi dev
+docker compose up -d --build api
+docker compose logs -f api      # the API's JSON logs
 ```
 
-The server listens on http://127.0.0.1:8000, and the interactive docs are at http://127.0.0.1:8000/docs.
+**On the host, for development.** `fastapi dev` reloads on every code change. `pyproject.toml` names the app as the entrypoint, so no path is needed. Stop the container first, since both use port 8000:
+
+```bash
+docker compose stop api
+uv run fastapi dev
+```
 
 | Method | Path | Body | Response |
 |--------|------|------|----------|
@@ -154,7 +167,7 @@ Every request gets a request ID, which appears in all the log lines from that re
 
 ### Prediction log
 
-Every transaction the API scores is appended to `logs/predictions.jsonl`, one JSON object per line: the features in the training data's column names (as in `data/processed/train.csv`), the prediction and the time. It is the input of Evidently drift reports. Requests that fail validation are not logged. When the API shuts down, it stores the file in MLflow as an artifact of a run in the `fraud-score-serving` experiment. Git ignores `logs/`.
+Every transaction the API scores is appended to `logs/predictions.jsonl`, one JSON object per line: the features in the raw dataset's column names, the prediction and the time (`logged_at`). It also holds `Timestamp` and `Risk_Score`, which `data/processed/train.csv` drops, so leave them out when comparing the two. It is the input of Evidently drift reports. Requests that fail validation are not logged. When the API shuts down, it stores the file in MLflow as an artifact of a run in the `fraud-score-serving` experiment. Git ignores `logs/`.
 
 ## Testing
 
@@ -176,7 +189,7 @@ uv run pyright    # strict type checking of src/ (pyrightconfig.json)
 
 ### Pre-commit hook
 
-`.pre-commit-config.yaml` runs on every commit. It regenerates `requirements.txt` and `requirements_dev.txt` from `uv.lock` when the dependencies change, then runs flake8, pyright and the tests with coverage. If a check fails or a requirements file was regenerated, the commit stops: fix the problem or `git add` the regenerated files, and commit again. GitHub Actions (`.github/workflows/tests.yml`) runs flake8, pyright and the tests on every push and pull request. To run the hook manually on all files:
+`.pre-commit-config.yaml` runs on every commit. It regenerates `requirements.txt` and `requirements_dev.txt` from `uv.lock` when the dependencies change, then runs flake8, pyright and the tests with coverage. If a check fails or a requirements file was regenerated, the commit stops: fix the problem or `git add` the regenerated files, and commit again. GitHub Actions (`.github/workflows/tests.yml`) runs flake8, pyright and the tests on every push to `main` and every pull request into it, and uploads `coverage.xml` as the `coverage-report` artifact. To run the hook manually on all files:
 
 ```bash
 uv run pre-commit run --all-files
@@ -254,11 +267,12 @@ uv run dvc push
 ├── data/
 │   ├── raw/                      # DVC-tracked raw dataset
 │   └── processed/                # Train/valid split, a DVC stage output
-├── docker/                       # MLflow image, MinIO bucket script and its image
+├── docker/                       # API and MLflow images, MinIO bucket script and its image
 ├── secrets_example/              # Example passwords; copy to secrets/
 ├── metrics/metrics.json          # Latest evaluation metrics (in Git)
 ├── models/mlflow_run_id          # MLflow run of the latest training (in Git)
-├── docker-compose.yaml           # Postgres, MinIO, MLflow
+├── docker-compose.yaml           # Postgres, MinIO, MLflow, API
+├── .dockerignore                 # Keeps .venv, data and secrets out of the API image
 ├── dvc.yaml, dvc.lock            # Pipeline definition and its locked state
 ├── params.yaml                   # Every pipeline parameter
 ├── .env.example                  # docker compose settings; copy to .env
@@ -282,7 +296,7 @@ Git ignores the following local outputs: `.venv/`, `mlruns/`, `mlartifacts/`, `*
 | `MLFLOW_REGISTERED_MODEL` | `fraud-score` | Registered model whose `champion` the API serves |
 | `LOG_LEVEL` | `INFO` | Log level of the pipeline and the API |
 
-The API's own settings (`FRAUD_THRESHOLD`, `CORS_ORIGINS`) are listed under "Model serving".
+The API's own settings (`FRAUD_THRESHOLD`, `CORS_ORIGINS`) are listed under "Model serving". For the `api` container, set them (and `API_PORT`, default `8000`) in `.env`. Compose passes them in and sets `MLFLOW_TRACKING_URI` itself. `uv run fastapi dev` doesn't read `.env`, so on the host, set them in your shell instead, for example `FRAUD_THRESHOLD=0.3 uv run fastapi dev`.
 
 ## Screenshots
 
