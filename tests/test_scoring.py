@@ -10,7 +10,7 @@ from src.ml.scoring import compute_metrics
 class FixedProba:
     """Stands in for a Pipeline: returns preset fraud probabilities."""
 
-    def __init__(self, proba: list[float]):
+    def __init__(self, proba: list[float]) -> None:
         self.proba = np.array(proba)
 
     def predict_proba(self, X: pd.DataFrame) -> np.ndarray:

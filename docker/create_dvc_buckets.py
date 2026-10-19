@@ -20,7 +20,7 @@ class MinIO:
         )
         return s3
 
-    def waiting_for_minio(self, s3: Any):
+    def waiting_for_minio(self, s3: Any) -> None:
         for _ in range(30):
             try:
                 s3.list_buckets()
@@ -30,7 +30,7 @@ class MinIO:
         else:
             raise SystemExit("Cannot access the MinIO")
 
-    def create_s3_bucket(self, s3: Any, bucket: Any):
+    def create_s3_bucket(self, s3: Any, bucket: str) -> None:
         "Ignore existing bucket"
         try:
             s3.create_bucket(Bucket=bucket)
@@ -39,7 +39,7 @@ class MinIO:
                "BucketAlreadyOwnedByYou", "BucketAlreadyExists"):
                 raise
 
-    def set_anon_policy(self, s3: Any, bucket: Any):
+    def set_anon_policy(self, s3: Any, bucket: str) -> None:
         try:
             s3.delete_bucket_policy(Bucket=bucket)
         except ClientError as e:
@@ -47,7 +47,7 @@ class MinIO:
                 raise
 
 
-def main():
+def main() -> None:
     dvc_bucket: str = os.environ["DVC_BUCKET"]
     mlflow_bucket: str = os.environ["MLFLOW_BUCKET"]
     buckets: list[str] = [dvc_bucket, mlflow_bucket]
