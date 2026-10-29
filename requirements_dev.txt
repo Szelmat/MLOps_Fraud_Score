@@ -322,7 +322,7 @@ mccabe==0.7.0
     # via flake8
 mdurl==0.1.2
     # via markdown-it-py
-mlflow==3.16.1
+mlflow==3.17.2
     # via mlops-fraud-score
 mlflow-skinny==3.16.1
     # via mlflow
